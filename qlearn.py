@@ -28,7 +28,7 @@ ACTIONS = 2 # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
 OBSERVATION = 3200. # timesteps to observe before training
 EXPLORE = 3000000. # frames over which to anneal epsilon
-FINAL_EPSILON = 0.0001 # final value of epsilon
+FINAL_EPSILON = 0.0000 # final value of epsilon
 INITIAL_EPSILON = 0.1 # starting value of epsilon
 REPLAY_MEMORY = 50000 # number of previous transitions to remember
 BATCH = 32 # size of minibatch
@@ -38,6 +38,18 @@ LEARNING_RATE = 1e-4
 img_rows , img_cols = 80, 80
 #Convert image into Black and white
 img_channels = 4 #We stack 4 frames
+
+import os
+def get_iterations(filename):
+	no_extension = filename.split('.')[0]
+	num_iterations = no_extension.split('model')[1]
+	return num_iterations + '.txt'
+
+def get_file():
+	for filename in os.listdir(os.getcwd()):
+		if filename.endswith('.h5'):
+			return filename
+
 
 def buildmodel():
     print("Now we build the model")
@@ -68,8 +80,7 @@ def trainNetwork(model,args):
     # get the first state by doing nothing and preprocess the image to 80x80x4
     do_nothing = np.zeros(ACTIONS)
     do_nothing[0] = 1
-    x_t, r_0, terminal = game_state.frame_step(do_nothing)
-
+    x_t, r_0, terminal = game_state.frame_step(do_nothing, args['iteration'])
     x_t = skimage.color.rgb2gray(x_t)
     x_t = skimage.transform.resize(x_t,(80,80))
     x_t = skimage.exposure.rescale_intensity(x_t,out_range=(0,255))
@@ -86,7 +97,12 @@ def trainNetwork(model,args):
         OBSERVE = 999999999    #We keep observe, never train
         epsilon = FINAL_EPSILON
         print ("Now we load weight")
-        model.load_weights("model.h5")
+	
+	if args['iteration']:
+            model.load_weights("models/model"+ str(args['iteration'])+".h5")
+	else:
+	    filename = get_file()
+            model.load_weights(filename)
         adam = Adam(lr=LEARNING_RATE)
         model.compile(loss='mse',optimizer=adam)
         print ("Weight load successfully")    
@@ -118,7 +134,7 @@ def trainNetwork(model,args):
             epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
 
         #run the selected action and observed next state and reward
-        x_t1_colored, r_t, terminal = game_state.frame_step(a_t)
+        x_t1_colored, r_t, terminal = game_state.frame_step(a_t, args['iteration'])
 
         x_t1 = skimage.color.rgb2gray(x_t1_colored)
         x_t1 = skimage.transform.resize(x_t1,(80,80))
@@ -169,11 +185,12 @@ def trainNetwork(model,args):
         t = t + 1
 
         # save progress every 10000 iterations
-        if t % 1000 == 0:
-            print("Now we save model")
-            model.save_weights("model.h5", overwrite=True)
-            with open("model.json", "w") as outfile:
-                json.dump(model.to_json(), outfile)
+    	if args['mode'] == 'Train':
+		if t % 10000 == 0:
+		    print("Now we save model")
+		    model.save_weights("models/model" + str(t/10000) + ".h5", overwrite=True)
+		    with open("model.json", "w") as outfile:
+		        json.dump(model.to_json(), outfile)
 
         # print info
         state = ""
@@ -184,10 +201,10 @@ def trainNetwork(model,args):
         else:
             state = "train"
 
-        print("TIMESTEP", t, "/ STATE", state, \
-            "/ EPSILON", epsilon, "/ ACTION", action_index, "/ REWARD", r_t, \
-            "/ Q_MAX " , np.max(Q_sa), "/ Loss ", loss)
-
+        print("TIMESTEP", t)
+	if args['mode'] == 'Run':
+	    if t == 10000:
+	        break
     print("Episode finished!")
     print("************************")
 
@@ -198,6 +215,7 @@ def playGame(args):
 def main():
     parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('-m','--mode', help='Train / Run', required=True)
+    parser.add_argument('-i','--iteration')
     args = vars(parser.parse_args())
     playGame(args)
 
