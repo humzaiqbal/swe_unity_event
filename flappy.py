@@ -5,20 +5,20 @@ import sys
 import pygame
 from pygame.locals import *
 
-scores_dct = {1: 0, 2: 0.11627906976744186, 100: 35.38297872340426, 5: 7.093023255813954, 40: 38.95, 10: 11.08974358974359, 15: 9.126582278481013, 50: 40.583333333333336, 20: 11.387755102040817, 4: 1.5508474576271187, 25: 8.02127659574468, 30: 38.43333333333333}
-rev_scores_dct = {0: 1, 1.5508474576271187: 4, 38.95: 40, 0.11627906976744186: 2, 35.38297872340426: 100, 40.583333333333336: 50, 8.02127659574468: 25, 9.126582278481013: 15, 7.093023255813954: 5, 11.387755102040817: 20, 11.08974358974359: 10, 38.43333333333333: 30}
+scores_dct = {0:0, 1: 0.01, 2: 0.11627906976744186, 100: 35.38297872340426, 5: 7.093023255813954, 40: 38.95, 10: 11.08974358974359, 15: 9.126582278481013, 50: 40.583333333333336, 20: 11.387755102040817, 4: 1.5508474576271187, 25: 8.02127659574468, 30: 38.43333333333333}
+rev_scores_dct = {0: 0, 0.01:1, 1.5508474576271187: 4, 38.95: 40, 0.11627906976744186: 2, 35.38297872340426: 100, 40.583333333333336: 50, 8.02127659574468: 25, 9.126582278481013: 15, 7.093023255813954: 5, 11.387755102040817: 20, 11.08974358974359: 10, 38.43333333333333: 30}
 
 def get_ranking(score):
     list_scores = scores_dct.values()
     list_scores.append(score)
     list_scores.sort()
     if score in rev_scores_dct:
-        print 'you tied with agent that ran for ' + str(rev_scores_dct[score] * 1000) + ' iterations'
+        print 'you tied with agent that ran for ' + str(rev_scores_dct[score] * 10000) + ' iterations'
     elif score > list_scores[-1]:
         print 'congratulations you beat the best agent!'
     else:
         index = list_scores.index(score) - 1
-        print 'you beat the agent that ran for ' + str(rev_scores_dct[list_scores[index]] * 1000) + ' iterations' 
+        print 'you beat the agent that ran for ' + str(rev_scores_dct[list_scores[index]] * 10000) + ' iterations' 
 
 
 
@@ -256,7 +256,7 @@ def mainGame(movementInfo):
         crashTest = checkCrash({'x': playerx, 'y': playery, 'index': playerIndex},
                                upperPipes, lowerPipes)
         if crashTest[0]:
-            print get_ranking(score)
+            get_ranking(score)
             return {
                 'y': playery,
                 'groundCrash': crashTest[1],
