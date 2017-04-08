@@ -157,7 +157,7 @@ class GameState:
         playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
         playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
         # f=open('training.txt','ab')
-        if self.upperPipes[0]['x'] < 0: 
+        if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
             pipeMidPos_y = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
 	    distance_diff_x = self.upperPipes[1]['x'] - playerMidPos_x
 	    distance_diff_y =  pipeMidPos_y - playerMidPos_y
