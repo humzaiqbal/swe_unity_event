@@ -17,7 +17,7 @@ import json
 from keras.initializers import *
 from keras.models import model_from_json
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Flatten
+from keras.layers.core import Dense, Dropout, Activation, Flatten, Input
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD , Adam
 import tensorflow as tf
@@ -69,6 +69,16 @@ def buildmodel():
     model.compile(loss='mse',optimizer=adam)
     print("We finish building the model")
     return model
+
+
+def buildmodel2():
+    model = Sequential()
+    moel.add(Dense(2, input_dim=(inp_dim,)))
+    model.add(Activation('relu'))
+    model.add(Dense(2))
+    adam = Adam(lr=LEARNING_RATE)
+    model.compile(loss='mse',optimizer=adam)
+
 
 def trainNetwork(model,args):
     # open up a game state to communicate with emulator
