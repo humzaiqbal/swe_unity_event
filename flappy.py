@@ -1,6 +1,7 @@
 from itertools import cycle
 import random
 import sys
+import numpy as np
 
 import pygame
 from pygame.locals import *
@@ -239,7 +240,8 @@ def mainGame(movementInfo):
     playerAccY    =   1   # players downward accleration
     playerFlapAcc =  -9   # players speed on flapping
     playerFlapped = False # True when player flaps
-
+    data = []
+    i = 0
 
     while True:
         for event in pygame.event.get():
@@ -255,7 +257,12 @@ def mainGame(movementInfo):
         # check for crash here
         crashTest = checkCrash({'x': playerx, 'y': playery, 'index': playerIndex},
                                upperPipes, lowerPipes)
+
         if crashTest[0]:
+            f=open('training.txt','ab')
+            np.savetxt(f, np.array(data))
+            f.close()
+            data = []
             get_ranking(score)
             return {
                 'y': playery,
@@ -274,6 +281,26 @@ def mainGame(movementInfo):
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 score += 1
                 SOUNDS['point'].play()
+
+        if i%500 == 0 and len(data) > 0:
+            f=open('training.txt','ab')
+            np.savetxt(f, np.array(data))
+            f.close()
+            data = []
+        
+        playerMidPos_x = playerx + IMAGES['player'][0].get_width() / 2
+        playerMidPos_y = playery + IMAGES['player'][0].get_height() / 2
+        # f=open('training.txt','ab')
+        if upperPipes[0]['x'] < 0: 
+            pipeMidPos_y = upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            data.append((playerMidPos_x, playerMidPos_y, upperPipes[1]['x'] - playerMidPos_x , pipeMidPos_y - playerMidPos_y, playerFlapped))
+            # np.savetxt(f, data)
+        else:
+            pipeMidPos_y = upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            data.append((playerMidPos_x, playerMidPos_y, upperPipes[0]['x'] - playerMidPos_x , pipeMidPos_y - playerMidPos_y, playerFlapped))
+            # np.savetxt(f, data)
+        # f.close()
+
 
         # playerIndex basex change
         if (loopIter + 1) % 3 == 0:
@@ -319,7 +346,7 @@ def mainGame(movementInfo):
 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
-
+        i = i + 1
 
 def showGameOverScreen(crashInfo):
     """crashes the player down ans shows gameover image"""

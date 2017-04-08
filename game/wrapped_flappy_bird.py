@@ -66,6 +66,7 @@ class GameState:
         self.playerAccY    =   1   # players downward accleration
         self.playerFlapAcc =  -9   # players speed on flapping
         self.playerFlapped = False # True when player flaps
+	self.data = []
 
     def frame_step(self, input_actions, iteration = 0):
         pygame.event.pump()
@@ -85,7 +86,6 @@ class GameState:
                 self.playerVelY = self.playerFlapAcc
                 self.playerFlapped = True
                 #SOUNDS['wing'].play()
-
         # check for score
         playerMidPos = self.playerx + PLAYER_WIDTH / 2
         for pipe in self.upperPipes:
@@ -133,20 +133,46 @@ class GameState:
         if isCrash:
             #SOUNDS['hit'].play()
             #SOUNDS['die'].play()
+	    f=open('training.txt','ab')
+            np.savetxt(f, np.array(self.data))
+            f.close()
+            self.data = []
 	    if iteration:
 	        filename = str(iteration) + ".txt"
 	    else:
 	    	filename = get_file()
-	    with open("scores/" + filename,"a") as f:
-	        f.write(str(self.score)+'\n')
+	    # with open("scores/" + filename,"a") as f:
+	    #     f.write(str(self.score)+'\n')
 	
             terminal = True
             self.__init__()
             reward = -1
 
+	if iteration%500 == 0 and len(self.data) > 0:
+            f=open('training.txt','ab')
+            np.savetxt(f, np.array(self.data))
+            f.close()
+            self.data = []
+        
+        playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
+        playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
+        # f=open('training.txt','ab')
+        if self.upperPipes[0]['x'] < 0: 
+            pipeMidPos_y = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+	    distance_diff_x = self.upperPipes[1]['x'] - playerMidPos_x
+	    distance_diff_y =  pipeMidPos_y - playerMidPos_y
+            self.data.append((playerMidPos_x, playerMidPos_y, distance_diff_x, distance_diff_y, input_actions[1]))
+            # np.savetxt(f, data)
+        else:
+            pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+	    distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
+	    distance_diff_y =  pipeMidPos_y - playerMidPos_y
+            self.data.append((playerMidPos_x, playerMidPos_y, distance_diff_x, distance_diff_y, input_actions[1]))
+            # np.savetxt(f, data)
+        # f.close()
         # draw sprites
         SCREEN.blit(IMAGES['background'], (0,0))
-
+	
         for uPipe, lPipe in zip(self.upperPipes, self.lowerPipes):
             SCREEN.blit(IMAGES['pipe'][0], (uPipe['x'], uPipe['y']))
             SCREEN.blit(IMAGES['pipe'][1], (lPipe['x'], lPipe['y']))

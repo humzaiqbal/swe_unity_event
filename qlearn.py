@@ -17,7 +17,7 @@ import json
 from keras.initializers import *
 from keras.models import model_from_json
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Flatten, Input
+from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD , Adam
 import tensorflow as tf
