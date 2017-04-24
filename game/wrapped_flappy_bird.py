@@ -147,8 +147,7 @@ class GameState:
             terminal = True
             self.__init__()
             reward = -1
-
-	if iteration%500 == 0 and len(self.data) > 0:
+	if iteration%10000 == 0 and len(self.data) > 0:
             f=open('training.txt','ab')
             np.savetxt(f, np.array(self.data))
             f.close()
@@ -158,16 +157,19 @@ class GameState:
         playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
         # f=open('training.txt','ab')
         if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
-            pipeMidPos_y = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
-	    distance_diff_x = self.upperPipes[1]['x'] - playerMidPos_x
+	    pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            pipeMidPos_y1 = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+	    distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
 	    distance_diff_y =  pipeMidPos_y - playerMidPos_y
-            self.data.append((playerMidPos_x, playerMidPos_y, distance_diff_x, distance_diff_y, input_actions[1]))
+	    distance_diff_x1 = self.upperPipes[1]['x'] - playerMidPos_x
+	    distance_diff_y1 =  pipeMidPos_y1 - playerMidPos_y
+            self.data.append((playerMidPos_x, playerMidPos_y, distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1, input_actions[1]))
             # np.savetxt(f, data)
         else:
             pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
 	    distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
 	    distance_diff_y =  pipeMidPos_y - playerMidPos_y
-            self.data.append((playerMidPos_x, playerMidPos_y, distance_diff_x, distance_diff_y, input_actions[1]))
+            self.data.append((playerMidPos_x, playerMidPos_y, distance_diff_x, distance_diff_y, 0, 0, input_actions[1]))
             # np.savetxt(f, data)
         # f.close()
         # draw sprites
