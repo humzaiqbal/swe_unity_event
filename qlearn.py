@@ -47,7 +47,7 @@ def get_iterations(filename):
 
 def get_file():
 	for filename in os.listdir(os.getcwd()):
-		if filename.endswith('.h5'):
+		if filename.endswith('model.h5'):
 			return filename
 
 
@@ -121,6 +121,7 @@ def trainNetwork(model,args):
         epsilon = INITIAL_EPSILON
 
     t = 0
+
     while (True):
         loss = 0
         Q_sa = 0
@@ -144,7 +145,7 @@ def trainNetwork(model,args):
             epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
 
         #run the selected action and observed next state and reward
-        x_t1_colored, r_t, terminal = game_state.frame_step(a_t, args['iteration'])
+        x_t1_colored, r_t, terminal = game_state.frame_step(a_t, t)
 
         x_t1 = skimage.color.rgb2gray(x_t1_colored)
         x_t1 = skimage.transform.resize(x_t1,(80,80))
@@ -210,10 +211,10 @@ def trainNetwork(model,args):
             state = "explore"
         else:
             state = "train"
-
-        print("TIMESTEP", t)
+	if t%1000 == 0:
+            print("TIMESTEP", t)
 	if args['mode'] == 'Run':
-	    if t == 10000:
+	    if t == 50000:
 	        break
     print("Episode finished!")
     print("************************")
