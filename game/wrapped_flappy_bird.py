@@ -2,12 +2,18 @@ import numpy as np
 import sys
 import random
 import pygame
+import keras
+from keras.models import Sequential
+from keras.layers.core import Dense, Dropout, Activation, Flatten
+from keras.optimizers import SGD , Adam
+from keras.models import load_model
+import tensorflow as tf
 import flappy_bird_utils
 import pygame.surfarray as surfarray
 from pygame.locals import *
 from itertools import cycle
 
-FPS = 200
+FPS = 30
 SCREENWIDTH  = 288
 SCREENHEIGHT = 512
 
@@ -25,6 +31,7 @@ PLAYER_HEIGHT = IMAGES['player'][0].get_height()
 PIPE_WIDTH = IMAGES['pipe'][0].get_width()
 PIPE_HEIGHT = IMAGES['pipe'][0].get_height()
 BACKGROUND_WIDTH = IMAGES['background'].get_width()
+
 
 PLAYER_INDEX_GEN = cycle([0, 1, 2, 1])
 
@@ -66,9 +73,21 @@ class GameState:
         self.playerAccY    =   1   # players downward accleration
         self.playerFlapAcc =  -9   # players speed on flapping
         self.playerFlapped = False # True when player flaps
-	self.data = []
+        self.prev = [0,0,0,0]
+        self.model2 = Sequential()
+        self.model2.add(Dense(12, activation='relu', input_shape=(8,)))
+        self.model2.add(Dense(9, activation='relu'))
+        self.model2.add(Dense(7, activation='relu'))
+        self.model2.add(Dense(5, activation='relu'))
+        self.model2.add(Dense(3, activation='relu'))
+        self.model2.add(Dense(2, activation='softmax'))
+        adam = Adam(lr=0.001)
+        self.model2.compile(loss='categorical_crossentropy',optimizer=adam, metrics=['accuracy'])
+        self.model2 = load_model('flappy.h5')
+        self.data = []
 
     def frame_step(self, input_actions, iteration = 0):
+
         pygame.event.pump()
 
         reward = 0.1
@@ -81,11 +100,75 @@ class GameState:
 
         # input_actions[0] == 1: do nothing
         # input_actions[1] == 1: flap the bird
-        if input_actions[1] == 1:
-            if self.playery > -2 * PLAYER_HEIGHT:
-                self.playerVelY = self.playerFlapAcc
-                self.playerFlapped = True
-                #SOUNDS['wing'].play()
+        playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
+        playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
+
+
+        #RL Agent 
+        # playerMidPos = self.playerx + PLAYER_WIDTH / 2
+        # if iteration%10000 == 0 and len(self.data) > 0:
+        #     f=open('training.txt','ab')
+        #     np.savetxt(f, np.array(self.data))
+        #     f.close()
+        #     self.data = []
+        # if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
+        #     pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+        #     pipeMidPos_y1 = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+        #     distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
+        #     distance_diff_y =  pipeMidPos_y - playerMidPos_y
+        #     distance_diff_x1 = self.upperPipes[1]['x'] - playerMidPos_x
+        #     distance_diff_y1 =  pipeMidPos_y1 - playerMidPos_y
+        #     self.data.append((self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1, input_actions[1]))
+        #     self.prev = [distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1]
+        # else:
+        #     pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+        #     distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
+        #     distance_diff_y =  pipeMidPos_y - playerMidPos_y
+        #     self.data.append((self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y, 0, 0, input_actions[1]))
+        #     self.prev = [distance_diff_x, distance_diff_y, 0, 0]
+
+        # if input_actions[1] == 1:
+        #     if self.playery > -2 * PLAYER_HEIGHT:
+        #         self.playerVelY = self.playerFlapAcc
+        #         self.playerFlapped = True
+        #         SOUNDS['wing'].play()
+
+
+        #Behavior Cloning Agent
+        playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
+        playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
+        if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
+            pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            pipeMidPos_y1 = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
+            distance_diff_y =  pipeMidPos_y - playerMidPos_y
+            distance_diff_x1 = self.upperPipes[1]['x'] - playerMidPos_x
+            distance_diff_y1 =  pipeMidPos_y1 - playerMidPos_y
+            data = (self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1)
+            self.prev = [distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1]
+            key = np.argmax(self.model2.predict(np.array(data).reshape((1,8)),verbose = 0))
+            if key:
+                if self.playery > -2 * IMAGES['player'][0].get_height():
+                    self.playerVelY = self.playerFlapAcc
+                    self.playerFlapped = True
+                    SOUNDS['wing'].play()
+        else:
+            pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
+            distance_diff_y =  pipeMidPos_y - playerMidPos_y
+            data = (self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y, 0, 0)
+            self.prev = [distance_diff_x, distance_diff_y, 0, 0]
+            key = np.argmax(self.model2.predict(np.array(data).reshape((1,8)),verbose = 0))
+            if key:
+                if self.playery > -2 * IMAGES['player'][0].get_height():
+                    self.playerVelY = self.playerFlapAcc
+                    self.playerFlapped = True
+                    SOUNDS['wing'].play()
+        # print key
+        print key == input_actions[1]
+
+
+
         # check for score
         playerMidPos = self.playerx + PLAYER_WIDTH / 2
         for pipe in self.upperPipes:
@@ -131,47 +214,23 @@ class GameState:
                              'index': self.playerIndex},
                             self.upperPipes, self.lowerPipes)
         if isCrash:
-            #SOUNDS['hit'].play()
-            #SOUNDS['die'].play()
-	    f=open('training.txt','ab')
-            np.savetxt(f, np.array(self.data))
-            f.close()
-            self.data = []
-	    if iteration:
-	        filename = str(iteration) + ".txt"
-	    else:
-	    	filename = get_file()
-	    # with open("scores/" + filename,"a") as f:
-	    #     f.write(str(self.score)+'\n')
-	
+            SOUNDS['hit'].play()
+            SOUNDS['die'].play()
+            # f=open('training.txt','ab')
+            # np.savetxt(f, np.array(self.data))
+            # f.close()
             terminal = True
             self.__init__()
             reward = -1
-	if iteration%10000 == 0 and len(self.data) > 0:
-            f=open('training.txt','ab')
-            np.savetxt(f, np.array(self.data))
-            f.close()
-            self.data = []
-        
-        playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
-        playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
-        # f=open('training.txt','ab')
-        if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
-	    pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
-            pipeMidPos_y1 = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
-	    distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
-	    distance_diff_y =  pipeMidPos_y - playerMidPos_y
-	    distance_diff_x1 = self.upperPipes[1]['x'] - playerMidPos_x
-	    distance_diff_y1 =  pipeMidPos_y1 - playerMidPos_y
-            self.data.append((playerMidPos_x, playerMidPos_y, distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1, input_actions[1]))
-            # np.savetxt(f, data)
-        else:
-            pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
-	    distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
-	    distance_diff_y =  pipeMidPos_y - playerMidPos_y
-            self.data.append((playerMidPos_x, playerMidPos_y, distance_diff_x, distance_diff_y, 0, 0, input_actions[1]))
-            # np.savetxt(f, data)
-        # f.close()
+                 #        self.data = []
+        # if iteration:
+        #     filename = str(iteration) + ".txt"
+        # else:
+        #   filename = get_file()
+        # with open("scores/" + filename,"a") as f:
+        #     f.write(str(self.score)+'\n')
+    
+
         # draw sprites
         SCREEN.blit(IMAGES['background'], (0,0))
 	

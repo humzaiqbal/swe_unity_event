@@ -121,6 +121,7 @@ def trainNetwork(model,args):
         epsilon = INITIAL_EPSILON
 
     t = 0
+
     while (True):
         loss = 0
         Q_sa = 0
