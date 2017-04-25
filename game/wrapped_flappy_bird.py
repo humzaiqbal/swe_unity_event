@@ -86,55 +86,33 @@ class GameState:
         self.model2 = load_model('flappy.h5')
         self.data = []
 
-    def frame_step(self, input_actions, iteration = 0):
 
-        pygame.event.pump()
-
-        reward = 0.1
-        terminal = False
-        if iteration == None:
-            iteration = 0
-
-        if sum(input_actions) != 1:
-            raise ValueError('Multiple input actions!')
-
-        # input_actions[0] == 1: do nothing
-        # input_actions[1] == 1: flap the bird
+    def collect_data(self, input_actions, iteration):
+        playerMidPos = self.playerx + PLAYER_WIDTH / 2
         playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
         playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
+        if iteration%10000 == 0 and len(self.data) > 0:
+            f=open('training.txt','ab')
+            np.savetxt(f, np.array(self.data))
+            f.close()
+            self.data = []
+        if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
+            pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            pipeMidPos_y1 = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
+            distance_diff_y =  pipeMidPos_y - playerMidPos_y
+            distance_diff_x1 = self.upperPipes[1]['x'] - playerMidPos_x
+            distance_diff_y1 =  pipeMidPos_y1 - playerMidPos_y
+            self.data.append((self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1, input_actions[1]))
+            self.prev = [distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1]
+        else:
+            pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
+            distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
+            distance_diff_y =  pipeMidPos_y - playerMidPos_y
+            self.data.append((self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y, 0, 0, input_actions[1]))
+            self.prev = [distance_diff_x, distance_diff_y, 0, 0]
 
-
-        #RL Agent 
-        # playerMidPos = self.playerx + PLAYER_WIDTH / 2
-        # if iteration%10000 == 0 and len(self.data) > 0:
-        #     f=open('training.txt','ab')
-        #     np.savetxt(f, np.array(self.data))
-        #     f.close()
-        #     self.data = []
-        # if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
-        #     pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
-        #     pipeMidPos_y1 = self.upperPipes[1]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
-        #     distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
-        #     distance_diff_y =  pipeMidPos_y - playerMidPos_y
-        #     distance_diff_x1 = self.upperPipes[1]['x'] - playerMidPos_x
-        #     distance_diff_y1 =  pipeMidPos_y1 - playerMidPos_y
-        #     self.data.append((self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1, input_actions[1]))
-        #     self.prev = [distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1]
-        # else:
-        #     pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
-        #     distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
-        #     distance_diff_y =  pipeMidPos_y - playerMidPos_y
-        #     self.data.append((self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y, 0, 0, input_actions[1]))
-        #     self.prev = [distance_diff_x, distance_diff_y, 0, 0]
-
-        # if input_actions[1] == 1:
-        #     if self.playery > -2 * PLAYER_HEIGHT:
-        #         self.playerVelY = self.playerFlapAcc
-        #         self.playerFlapped = True
-        #         SOUNDS['wing'].play()
-
-
-        #Behavior Cloning Agent
+    def behavior_cloning_agent(self):
         playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
         playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
         if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
@@ -147,11 +125,7 @@ class GameState:
             data = (self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1)
             self.prev = [distance_diff_x, distance_diff_y,distance_diff_x1, distance_diff_y1]
             key = np.argmax(self.model2.predict(np.array(data).reshape((1,8)),verbose = 0))
-            if key:
-                if self.playery > -2 * IMAGES['player'][0].get_height():
-                    self.playerVelY = self.playerFlapAcc
-                    self.playerFlapped = True
-                    SOUNDS['wing'].play()
+        
         else:
             pipeMidPos_y = self.upperPipes[0]['y'] + IMAGES['pipe'][0].get_height() + PIPEGAPSIZE/2
             distance_diff_x = self.upperPipes[0]['x'] - playerMidPos_x
@@ -159,13 +133,43 @@ class GameState:
             data = (self.prev[0], self.prev[1],self.prev[2],self.prev[3], distance_diff_x, distance_diff_y, 0, 0)
             self.prev = [distance_diff_x, distance_diff_y, 0, 0]
             key = np.argmax(self.model2.predict(np.array(data).reshape((1,8)),verbose = 0))
-            if key:
-                if self.playery > -2 * IMAGES['player'][0].get_height():
-                    self.playerVelY = self.playerFlapAcc
-                    self.playerFlapped = True
-                    SOUNDS['wing'].play()
-        # print key
-        print key == input_actions[1]
+        return key
+
+    def frame_step(self, input_actions, iteration = 0):
+
+        pygame.event.pump()
+        save_data = 0
+        reward = 0.1
+        terminal = False
+        if iteration == None:
+            iteration = 0
+
+        if sum(input_actions) != 1:
+            raise ValueError('Multiple input actions!')
+
+        # input_actions[0] == 1: do nothing
+        # input_actions[1] == 1: flap the bird
+
+        #Collect Data
+        # save_data = 1
+        # self.collect_data(input_actions, iteration)
+        
+        #RL Agent 
+        # if input_actions[1] == 1:
+        #     if self.playery > -2 * PLAYER_HEIGHT:
+        #         self.playerVelY = self.playerFlapAcc
+        #         self.playerFlapped = True
+        #         SOUNDS['wing'].play() 
+
+
+        #Behavior Cloning Agent
+        action = self.behavior_cloning_agent()
+        if action:
+            if self.playery > -2 * IMAGES['player'][0].get_height():
+                self.playerVelY = self.playerFlapAcc
+                self.playerFlapped = True
+                SOUNDS['wing'].play()
+        print action == input_actions[1]
 
 
 
@@ -216,13 +220,15 @@ class GameState:
         if isCrash:
             SOUNDS['hit'].play()
             SOUNDS['die'].play()
-            # f=open('training.txt','ab')
-            # np.savetxt(f, np.array(self.data))
-            # f.close()
+            if save_data:
+                f=open('training.txt','ab')
+                np.savetxt(f, np.array(self.data))
+                f.close()
+                self.data = []
             terminal = True
             self.__init__()
             reward = -1
-                 #        self.data = []
+
         # if iteration:
         #     filename = str(iteration) + ".txt"
         # else:
