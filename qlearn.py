@@ -90,7 +90,7 @@ def trainNetwork(model,args):
     # get the first state by doing nothing and preprocess the image to 80x80x4
     do_nothing = np.zeros(ACTIONS)
     do_nothing[0] = 1
-    x_t, r_0, terminal = game_state.frame_step(do_nothing, args['iteration'])
+    x_t, r_0, terminal = game_state.frame_step(do_nothing, args['rl_agent'], args['iteration'], args['data'])
     x_t = skimage.color.rgb2gray(x_t)
     x_t = skimage.transform.resize(x_t,(80,80))
     x_t = skimage.exposure.rescale_intensity(x_t,out_range=(0,255))
@@ -112,7 +112,7 @@ def trainNetwork(model,args):
             model.load_weights("models/model"+ str(args['iteration'])+".h5")
 	else:
 	    filename = get_file()
-            model.load_weights(filename)
+        model.load_weights(filename)
         adam = Adam(lr=LEARNING_RATE)
         model.compile(loss='mse',optimizer=adam)
         print ("Weight load successfully")    
@@ -145,7 +145,7 @@ def trainNetwork(model,args):
             epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
 
         #run the selected action and observed next state and reward
-        x_t1_colored, r_t, terminal = game_state.frame_step(a_t, t)
+        x_t1_colored, r_t, terminal = game_state.frame_step(a_t, args['rl_agent'], t, args['data'])
 
         x_t1 = skimage.color.rgb2gray(x_t1_colored)
         x_t1 = skimage.transform.resize(x_t1,(80,80))
@@ -214,7 +214,7 @@ def trainNetwork(model,args):
 	if t%1000 == 0:
             print("TIMESTEP", t)
 	if args['mode'] == 'Run':
-	    if t == 50000:
+	    if t == 5000000:
 	        break
     print("Episode finished!")
     print("************************")
@@ -226,7 +226,9 @@ def playGame(args):
 def main():
     parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('-m','--mode', help='Train / Run', required=True)
-    parser.add_argument('-i','--iteration')
+    parser.add_argument('-i','--iteration' )
+    parser.add_argument('-rl','--rl_agent', help='0 - bc agent/ 1 - rl agent',)
+    parser.add_argument('-d','--data', help='0 / 1',)
     args = vars(parser.parse_args())
     playGame(args)
 

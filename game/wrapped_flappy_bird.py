@@ -37,14 +37,14 @@ PLAYER_INDEX_GEN = cycle([0, 1, 2, 1])
 
 import os
 def get_iterations(filename):
-	no_extension = filename.split('.')[0]
-	num_iterations = no_extension.split('model')[1]
-	return num_iterations + '.txt'
+    no_extension = filename.split('.')[0]
+    num_iterations = no_extension.split('model')[1]
+    return num_iterations + '.txt'
 
 def get_file():
-	for filename in os.listdir(os.getcwd()):
-		if filename.endswith('.h5'):
-			return get_iterations(filename)
+    for filename in os.listdir(os.getcwd()):
+        if filename.endswith('.h5'):
+            return get_iterations(filename)
 
 class GameState:
     def __init__(self):
@@ -74,6 +74,8 @@ class GameState:
         self.playerFlapAcc =  -9   # players speed on flapping
         self.playerFlapped = False # True when player flaps
         self.prev = [0,0,0,0]
+
+        # network for behavior cloning
         self.model2 = Sequential()
         self.model2.add(Dense(12, activation='relu', input_shape=(8,)))
         self.model2.add(Dense(9, activation='relu'))
@@ -83,12 +85,20 @@ class GameState:
         self.model2.add(Dense(2, activation='softmax'))
         adam = Adam(lr=0.001)
         self.model2.compile(loss='categorical_crossentropy',optimizer=adam, metrics=['accuracy'])
-        self.model2 = load_model('flappy.h5')
+        self.model2 = load_model('flappy_bc.h5')
         self.data = []
 
 
     def collect_data(self, input_actions, iteration):
-        playerMidPos = self.playerx + PLAYER_WIDTH / 2
+        """
+        Collect flappy bird data. Extracts features (flappy bird location and distance to the two pipes on the screen)
+        and saves data
+
+        @param input_actions: the input_action of the trained dqn rl agent
+        @param iteration: iteration agent is on (used to determine when to save to txt file)
+
+        Saves data into "training.txt"
+        """
         playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
         playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
         if iteration%10000 == 0 and len(self.data) > 0:
@@ -113,6 +123,11 @@ class GameState:
             self.prev = [distance_diff_x, distance_diff_y, 0, 0]
 
     def behavior_cloning_agent(self):
+        """
+        Extract features and run behavioral cloning agent
+
+        Returns action of trained behavioral cloning agent
+        """
         playerMidPos_x = self.playerx + IMAGES['player'][0].get_width() / 2
         playerMidPos_y = self.playery + IMAGES['player'][0].get_height() / 2
         if self.upperPipes[0]['x'] - playerMidPos_x < 0: 
@@ -135,7 +150,7 @@ class GameState:
             key = np.argmax(self.model2.predict(np.array(data).reshape((1,8)),verbose = 0))
         return key
 
-    def frame_step(self, input_actions, iteration = 0):
+    def frame_step(self, input_actions, rl_agent = 0, iteration = 0, data = 0):
 
         pygame.event.pump()
         save_data = 0
@@ -147,30 +162,33 @@ class GameState:
         if sum(input_actions) != 1:
             raise ValueError('Multiple input actions!')
 
-        # input_actions[0] == 1: do nothing
-        # input_actions[1] == 1: flap the bird
+       
 
         #Collect Data
-        # save_data = 1
-        # self.collect_data(input_actions, iteration)
+        if data:
+            self.collect_data(input_actions, iteration)
         
         #RL Agent 
-        # if input_actions[1] == 1:
-        #     if self.playery > -2 * PLAYER_HEIGHT:
-        #         self.playerVelY = self.playerFlapAcc
-        #         self.playerFlapped = True
-        #         SOUNDS['wing'].play() 
+        if int(rl_agent):
+            if input_actions[1] == 1:
+                if self.playery > -2 * PLAYER_HEIGHT:
+                    self.playerVelY = self.playerFlapAcc
+                    self.playerFlapped = True
+                    SOUNDS['wing'].play() 
 
 
         #Behavior Cloning Agent
-        action = self.behavior_cloning_agent()
-        if action:
-            if self.playery > -2 * IMAGES['player'][0].get_height():
-                self.playerVelY = self.playerFlapAcc
-                self.playerFlapped = True
-                SOUNDS['wing'].play()
-        print action == input_actions[1]
+        else:
+            action = self.behavior_cloning_agent()
+            if action:
+                if self.playery > -2 * IMAGES['player'][0].get_height():
+                    self.playerVelY = self.playerFlapAcc
+                    self.playerFlapped = True
+                    SOUNDS['wing'].play()
+            print action == input_actions[1]
 
+        # input_actions[0] == 1: do nothing
+        # input_actions[1] == 1: flap the bird
 
 
         # check for score
@@ -220,7 +238,7 @@ class GameState:
         if isCrash:
             SOUNDS['hit'].play()
             SOUNDS['die'].play()
-            if save_data:
+            if data:
                 f=open('training.txt','ab')
                 np.savetxt(f, np.array(self.data))
                 f.close()
@@ -228,18 +246,11 @@ class GameState:
             terminal = True
             self.__init__()
             reward = -1
-
-        # if iteration:
-        #     filename = str(iteration) + ".txt"
-        # else:
-        #   filename = get_file()
-        # with open("scores/" + filename,"a") as f:
-        #     f.write(str(self.score)+'\n')
     
 
         # draw sprites
         SCREEN.blit(IMAGES['background'], (0,0))
-	
+    
         for uPipe, lPipe in zip(self.upperPipes, self.lowerPipes):
             SCREEN.blit(IMAGES['pipe'][0], (uPipe['x'], uPipe['y']))
             SCREEN.blit(IMAGES['pipe'][1], (lPipe['x'], lPipe['y']))
@@ -253,7 +264,7 @@ class GameState:
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         pygame.display.update()
         #print ("FPS" , FPSCLOCK.get_fps())
-	FPSCLOCK.tick(FPS)
+        FPSCLOCK.tick(FPS)
         #print self.upperPipes[0]['y'] + PIPE_HEIGHT - int(BASEY * 0.2)
         return image_data, reward, terminal
 
@@ -261,6 +272,7 @@ def getRandomPipe():
     """returns a randomly generated pipe"""
     # y of gap between upper and lower pipe
     gapYs = [20, 30, 40, 50, 60, 70, 80, 90]
+    # random.seed(0)
     index = random.randint(0, len(gapYs)-1)
     gapY = gapYs[index]
 
