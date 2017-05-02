@@ -165,7 +165,7 @@ class GameState:
        
 
         #Collect Data
-        if data:
+        if int(data):
             self.collect_data(input_actions, iteration)
         
         #RL Agent 
